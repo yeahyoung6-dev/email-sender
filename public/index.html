@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量邮件发送工具</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📧 批量邮件发送工具</h1>
+            <p class="subtitle">上传Excel文件，一键发送个性化邮件</p>
+        </header>
+
+        <!-- 步骤指示器 -->
+        <div class="steps">
+            <div class="step active" data-step="1">
+                <span class="step-number">1</span>
+                <span class="step-text">配置SMTP</span>
+            </div>
+            <div class="step" data-step="2">
+                <span class="step-number">2</span>
+                <span class="step-text">上传Excel</span>
+            </div>
+            <div class="step" data-step="3">
+                <span class="step-number">3</span>
+                <span class="step-text">编辑模板</span>
+            </div>
+            <div class="step" data-step="4">
+                <span class="step-number">4</span>
+                <span class="step-text">发送邮件</span>
+            </div>
+        </div>
+
+        <!-- Step 1: SMTP配置 -->
+        <section class="panel" id="step1">
+            <h2>SMTP服务器配置</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>SMTP服务器地址</label>
+                    <input type="text" id="smtpHost" placeholder="例如: smtp.qq.com">
+                </div>
+                <div class="form-group">
+                    <label>端口</label>
+                    <input type="number" id="smtpPort" placeholder="465 或 587" value="465">
+                </div>
+                <div class="form-group">
+                    <label>邮箱账号</label>
+                    <input type="text" id="smtpUser" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>授权码/密码</label>
+                    <input type="password" id="smtpPass" placeholder="SMTP授权码">
+                </div>
+                <div class="form-group">
+                    <label>发件人名称</label>
+                    <input type="text" id="senderName" placeholder="显示的发件人名称">
+                </div>
+            </div>
+            <div class="smtp-help">
+                <p><strong>常用邮箱配置：</strong></p>
+                <ul>
+                    <li><strong>QQ邮箱:</strong> smtp.qq.com, 端口 465/587 (需开启SMTP服务获取授权码)</li>
+                    <li><strong>163邮箱:</strong> smtp.163.com, 端口 465/25 (需开启SMTP服务获取授权码)</li>
+                    <li><strong>Gmail:</strong> smtp.gmail.com, 端口 587 (需启用应用专用密码)</li>
+                    <li><strong>企业邮箱:</strong> 请咨询IT管理员</li>
+                </ul>
+            </div>
+            <button class="btn btn-primary" onclick="nextStep(1)">下一步 →</button>
+        </section>
+
+        <!-- Step 2: 上传Excel -->
+        <section class="panel hidden" id="step2">
+            <h2>上传Excel文件</h2>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <p>拖拽Excel文件到此处，或点击选择文件</p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+                <p class="upload-hint">支持 .xlsx, .xls 格式</p>
+            </div>
+
+            <div class="file-info hidden" id="fileInfo">
+                <p><strong>文件名:</strong> <span id="fileName"></span></p>
+                <p><strong>数据行数:</strong> <span id="rowCount"></span> 条</p>
+            </div>
+
+            <div class="data-preview hidden" id="dataPreview">
+                <h3>数据预览（前5条）</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>人员编码</th>
+                            <th>卡号</th>
+                            <th>邮箱地址</th>
+                        </tr>
+                    </thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+
+            <div class="excel-format">
+                <p><strong>Excel文件格式要求：</strong></p>
+                <table class="format-table">
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>人员编码</th>
+                            <th>卡号</th>
+                            <th>密码</th>
+                            <th>邮箱地址</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>张三</td>
+                            <td>001</td>
+                            <td>123456</td>
+                            <td>abc123</td>
+                            <td>zhangsan@example.com</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="prevStep(2)">← 上一步</button>
+                <button class="btn btn-primary" onclick="nextStep(2)" id="step2Next" disabled>下一步 →</button>
+            </div>
+        </section>
+
+        <!-- Step 3: 邮件模板 -->
+        <section class="panel hidden" id="step3">
+            <h2>编辑邮件模板</h2>
+            <div class="template-help">
+                <p><strong>可用变量：</strong> {姓名} {人员编码} {卡号} {密码} {邮箱地址}</p>
+            </div>
+
+            <div class="form-group">
+                <label>邮件主题</label>
+                <input type="text" id="emailSubject" placeholder="例如：您的账号信息通知 - {姓名}">
+            </div>
+
+            <div class="form-group">
+                <label>邮件正文</label>
+                <textarea id="emailBody" rows="10" placeholder="例如：
+您好，{姓名}！
+
+您的人员编码：{人员编码}
+您的卡号：{卡号}
+您的密码：{密码}
+
+请妥善保管您的账号信息。"></textarea>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="prevStep(3)">← 上一步</button>
+                <button class="btn btn-primary" onclick="nextStep(3)">预览并发送 →</button>
+            </div>
+        </section>
+
+        <!-- Step 4: 发送邮件 -->
+        <section class="panel hidden" id="step4">
+            <h2>发送邮件</h2>
+
+            <div class="send-summary" id="sendSummary">
+                <div class="summary-item">
+                    <span class="label">收件人数量</span>
+                    <span class="value" id="summaryCount">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">发送间隔</span>
+                    <span class="value">3秒/封</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">预计耗时</span>
+                    <span class="value" id="estimatedTime">0分钟</span>
+                </div>
+            </div>
+
+            <div class="preview-email">
+                <h3>邮件预览（第一条数据）</h3>
+                <div class="email-preview-box">
+                    <p><strong>主题:</strong> <span id="previewSubject"></span></p>
+                    <hr>
+                    <pre id="previewBody"></pre>
+                </div>
+            </div>
+
+            <div class="progress-section hidden" id="progressSection">
+                <h3>发送进度</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressText">0 / 0</span>
+                </div>
+                <div class="progress-stats">
+                    <span class="success">✓ 成功: <span id="successCount">0</span></span>
+                    <span class="fail">✗ 失败: <span id="failCount">0</span></span>
+                </div>
+            </div>
+
+            <div class="send-results hidden" id="sendResults">
+                <h3>发送结果</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>姓名</th>
+                            <th>邮箱</th>
+                            <th>状态</th>
+                            <th>备注</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+
+            <div class="btn-group" id="sendBtns">
+                <button class="btn btn-secondary" onclick="prevStep(4)">← 上一步</button>
+                <button class="btn btn-primary" onclick="sendEmails()" id="sendBtn">开始发送</button>
+            </div>
+
+            <div class="btn-group hidden" id="restartBtns">
+                <button class="btn btn-primary" onclick="resetAll()">重新开始</button>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>批量邮件发送工具 | 请勿用于垃圾邮件发送</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
