@@ -22,7 +22,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // 配置文件上传
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, 'uploads/'));
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + file.originalname);
@@ -42,34 +42,60 @@ function parseExcel(filePath) {
   return data;
 }
 
-// 验证Excel数据格式
+// 验证Excel数据格式 - 只要求有邮箱地址列
 function validateExcelData(data) {
-  const requiredFields = ['姓名', '人员编码', '卡号', '密码', '邮箱地址'];
   const errors = [];
 
   if (!data || data.length === 0) {
     return { valid: false, errors: ['Excel文件为空'] };
   }
 
-  const firstRow = data[0];
-  const missingFields = requiredFields.filter(field => !(field in firstRow));
+  // 获取所有列名
+  const columns = Object.keys(data[0]);
 
-  if (missingFields.length > 0) {
-    errors.push(`缺少必要字段: ${missingFields.join(', ')}`);
+  // 查找邮箱列（支持多种命名）
+  const emailColumnNames = ['邮箱地址', '邮箱', 'email', 'Email', 'E-mail', '电子邮件', '邮件地址'];
+  let emailColumn = null;
+
+  for (const name of emailColumnNames) {
+    if (columns.includes(name)) {
+      emailColumn = name;
+      break;
+    }
+  }
+
+  // 如果没找到明确邮箱列，尝试查找包含"邮箱"或"email"的列
+  if (!emailColumn) {
+    for (const col of columns) {
+      if (col.includes('邮箱') || col.toLowerCase().includes('email')) {
+        emailColumn = col;
+        break;
+      }
+    }
+  }
+
+  if (!emailColumn) {
+    return {
+      valid: false,
+      errors: ['Excel中未找到邮箱地址列，请确保有一列名为"邮箱地址"、"邮箱"或"email"']
+    };
   }
 
   // 验证邮箱格式
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   data.forEach((row, index) => {
-    if (row['邮箱地址'] && !emailRegex.test(row['邮箱地址'])) {
-      errors.push(`第${index + 2}行邮箱格式不正确: ${row['邮箱地址']}`);
+    const email = row[emailColumn];
+    if (email && !emailRegex.test(String(email))) {
+      errors.push(`第${index + 2}行邮箱格式不正确: ${email}`);
     }
   });
 
   return {
     valid: errors.length === 0,
     errors,
-    rowCount: data.length
+    rowCount: data.length,
+    columns,
+    emailColumn
   };
 }
 
@@ -104,25 +130,35 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     progressStore.set(sessionId, {
       data,
       filePath,
+      emailColumn: validation.emailColumn,
+      columns: validation.columns,
       progress: { current: 0, total: data.length, status: 'pending' }
     });
 
-    // 返回预览数据（隐藏敏感信息）
+    // 返回预览数据和列名
     const preview = data.slice(0, 5).map(row => {
-      const cardNum = String(row['卡号'] || '');
-      return {
-        姓名: row['姓名'],
-        人员编码: row['人员编码'],
-        卡号: cardNum ? cardNum.substring(0, 4) + '****' : '',
-        密码: '****',
-        邮箱地址: row['邮箱地址']
-      };
+      const obj = {};
+      validation.columns.forEach(col => {
+        let value = row[col];
+        // 对敏感信息进行脱敏
+        if (col.includes('密码') || col.toLowerCase().includes('password')) {
+          obj[col] = '****';
+        } else if (col.includes('卡号') || col.toLowerCase().includes('card')) {
+          const strVal = String(value || '');
+          obj[col] = strVal.length > 4 ? strVal.substring(0, 4) + '****' : strVal;
+        } else {
+          obj[col] = value;
+        }
+      });
+      return obj;
     });
 
     res.json({
       success: true,
       sessionId,
       rowCount: data.length,
+      columns: validation.columns,
+      emailColumn: validation.emailColumn,
       preview
     });
   } catch (error) {
@@ -140,7 +176,7 @@ app.post('/api/send', async (req, res) => {
   }
 
   const session = progressStore.get(sessionId);
-  const { data, filePath } = session;
+  const { data, filePath, emailColumn } = session;
 
   // 创建邮件传输器
   const transporter = nodemailer.createTransport({
@@ -167,6 +203,7 @@ app.post('/api/send', async (req, res) => {
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
+    const email = row[emailColumn];
 
     try {
       const subject = replaceVariables(emailTemplate.subject, row);
@@ -174,20 +211,18 @@ app.post('/api/send', async (req, res) => {
 
       await transporter.sendMail({
         from: `"${smtpConfig.senderName}" <${smtpConfig.user}>`,
-        to: row['邮箱地址'],
+        to: String(email),
         subject,
         text: body
       });
 
       session.progress.results.push({
-        email: row['邮箱地址'],
-        name: row['姓名'],
+        email: String(email),
         success: true
       });
     } catch (error) {
       session.progress.results.push({
-        email: row['邮箱地址'],
-        name: row['姓名'],
+        email: String(email),
         success: false,
         error: error.message
       });

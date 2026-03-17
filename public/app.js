@@ -1,5 +1,7 @@
 // 全局状态
 let sessionId = null;
+let excelColumns = [];
+let emailColumn = null;
 let excelData = null;
 let progressInterval = null;
 
@@ -53,10 +55,6 @@ function handleFileSelect(e) {
 // 处理文件上传
 async function handleFile(file) {
     // 验证文件类型
-    const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel'
-    ];
     const extension = file.name.split('.').pop().toLowerCase();
 
     if (!['xlsx', 'xls'].includes(extension)) {
@@ -82,15 +80,21 @@ async function handleFile(file) {
         }
 
         sessionId = result.sessionId;
+        excelColumns = result.columns;
+        emailColumn = result.emailColumn;
         excelData = result.preview;
 
         // 显示文件信息
         document.getElementById('fileInfo').classList.remove('hidden');
         document.getElementById('fileName').textContent = file.name;
         document.getElementById('rowCount').textContent = result.rowCount;
+        document.getElementById('emailColumn').textContent = emailColumn;
 
         // 显示预览
-        renderPreview(result.preview);
+        renderPreview(result.preview, result.columns);
+
+        // 更新可用字段提示
+        document.getElementById('availableFields').textContent = excelColumns.map(c => `{${c}}`).join(' ');
 
         // 启用下一步按钮
         document.getElementById('step2Next').disabled = false;
@@ -101,18 +105,18 @@ async function handleFile(file) {
 }
 
 // 渲染预览表格
-function renderPreview(data) {
+function renderPreview(data, columns) {
+    // 渲染表头
+    const thead = document.getElementById('previewHead');
+    thead.innerHTML = '<tr>' + columns.map(col => `<th>${col}</th>`).join('') + '</tr>';
+
+    // 渲染表体
     const tbody = document.getElementById('previewBody');
     tbody.innerHTML = '';
 
     data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${row['姓名'] || ''}</td>
-            <td>${row['人员编码'] || ''}</td>
-            <td>${row['卡号'] || ''}</td>
-            <td>${row['邮箱地址'] || ''}</td>
-        `;
+        tr.innerHTML = columns.map(col => `<td>${row[col] || ''}</td>`).join('');
         tbody.appendChild(tr);
     });
 
@@ -186,7 +190,7 @@ function updateEmailPreview() {
     if (excelData && excelData.length > 0) {
         const firstRow = excelData[0];
         document.getElementById('previewSubject').textContent = replaceVariables(subject, firstRow);
-        document.getElementById('previewBody').textContent = replaceVariables(body, firstRow);
+        document.getElementById('previewEmailBody').textContent = replaceVariables(body, firstRow);
 
         // 更新摘要
         const rowCount = document.getElementById('rowCount').textContent;
@@ -199,10 +203,9 @@ function updateEmailPreview() {
 // 替换模板变量
 function replaceVariables(template, data) {
     let result = template;
-    const fields = ['姓名', '人员编码', '卡号', '密码', '邮箱地址'];
-    fields.forEach(field => {
-        const regex = new RegExp(`\\{${field}\\}`, 'g');
-        result = result.replace(regex, data[field] || '');
+    Object.keys(data).forEach(key => {
+        const regex = new RegExp(`\\{${key}\\}`, 'g');
+        result = result.replace(regex, data[key] || '');
     });
     return result;
 }
@@ -306,7 +309,6 @@ function onSendComplete(progress) {
     progress.results.forEach(result => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${result.name}</td>
             <td>${result.email}</td>
             <td class="${result.success ? 'result-success' : 'result-fail'}">
                 ${result.success ? '成功' : '失败'}
@@ -327,6 +329,8 @@ function onSendComplete(progress) {
 // 重置
 function resetAll() {
     sessionId = null;
+    excelColumns = [];
+    emailColumn = null;
     excelData = null;
 
     // 重置表单

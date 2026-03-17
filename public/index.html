@@ -83,45 +83,23 @@
             <div class="file-info hidden" id="fileInfo">
                 <p><strong>文件名:</strong> <span id="fileName"></span></p>
                 <p><strong>数据行数:</strong> <span id="rowCount"></span> 条</p>
+                <p><strong>邮箱列:</strong> <span id="emailColumn" style="color: #00d4ff;"></span></p>
             </div>
 
             <div class="data-preview hidden" id="dataPreview">
                 <h3>数据预览（前5条）</h3>
                 <table>
-                    <thead>
-                        <tr>
-                            <th>姓名</th>
-                            <th>人员编码</th>
-                            <th>卡号</th>
-                            <th>邮箱地址</th>
-                        </tr>
-                    </thead>
+                    <thead id="previewHead"></thead>
                     <tbody id="previewBody"></tbody>
                 </table>
             </div>
 
             <div class="excel-format">
-                <p><strong>Excel文件格式要求：</strong></p>
-                <table class="format-table">
-                    <thead>
-                        <tr>
-                            <th>姓名</th>
-                            <th>人员编码</th>
-                            <th>卡号</th>
-                            <th>密码</th>
-                            <th>邮箱地址</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>张三</td>
-                            <td>001</td>
-                            <td>123456</td>
-                            <td>abc123</td>
-                            <td>zhangsan@example.com</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <p><strong>Excel文件要求：</strong></p>
+                <ul>
+                    <li>文件必须有<strong>邮箱地址列</strong>（列名可以是：邮箱地址、邮箱、email等）</li>
+                    <li>其他列名不限，可在邮件模板中用 <code>{列名}</code> 引用</li>
+                </ul>
             </div>
 
             <div class="btn-group">
@@ -134,24 +112,22 @@
         <section class="panel hidden" id="step3">
             <h2>编辑邮件模板</h2>
             <div class="template-help">
-                <p><strong>可用变量：</strong> {姓名} {人员编码} {卡号} {密码} {邮箱地址}</p>
+                <p><strong>可用变量：</strong> <span id="availableFields" style="color: #00d4ff;"></span></p>
+                <p style="font-size: 12px; color: #888; margin-top: 5px;">在主题或正文中使用 {列名} 插入对应数据</p>
             </div>
 
             <div class="form-group">
                 <label>邮件主题</label>
-                <input type="text" id="emailSubject" placeholder="例如：您的账号信息通知 - {姓名}">
+                <input type="text" id="emailSubject" placeholder="例如：您的账号信息通知">
             </div>
 
             <div class="form-group">
                 <label>邮件正文</label>
                 <textarea id="emailBody" rows="10" placeholder="例如：
-您好，{姓名}！
+您好！
 
-您的人员编码：{人员编码}
-您的卡号：{卡号}
-您的密码：{密码}
-
-请妥善保管您的账号信息。"></textarea>
+以下是您的相关信息：
+..."></textarea>
             </div>
 
             <div class="btn-group">
@@ -184,7 +160,7 @@
                 <div class="email-preview-box">
                     <p><strong>主题:</strong> <span id="previewSubject"></span></p>
                     <hr>
-                    <pre id="previewBody"></pre>
+                    <pre id="previewEmailBody"></pre>
                 </div>
             </div>
 
@@ -207,7 +183,6 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>姓名</th>
                             <th>邮箱</th>
                             <th>状态</th>
                             <th>备注</th>
