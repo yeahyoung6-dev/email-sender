@@ -18,11 +18,8 @@ function createWindow() {
     show: false
   });
 
-  // 等待服务器启动后加载页面
-  setTimeout(() => {
-    mainWindow.loadURL(`http://localhost:${PORT}`);
-    mainWindow.show();
-  }, 1500);
+  mainWindow.loadURL(`http://localhost:${PORT}`);
+  mainWindow.show();
 
   // 在默认浏览器中打开外部链接
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -40,10 +37,12 @@ function createWindow() {
 // 应用启动
 app.whenReady().then(() => {
   // 启动后端服务器
-  require('./server.js');
+  const server = require('./server.js');
 
-  // 创建窗口
-  createWindow();
+  // 等待服务器启动完成后再创建窗口
+  setTimeout(() => {
+    createWindow();
+  }, 2000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

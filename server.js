@@ -9,6 +9,12 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = 3000;
 
+// 确保uploads目录存在
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // 中间件
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
