@@ -9,15 +9,18 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = 3000;
 
+// 获取当前工作目录（由main.js设置）
+const basePath = process.cwd();
+
 // 确保uploads目录存在
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(basePath, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // 中间件
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(basePath, 'public')));
 
 // 配置文件上传
 const storage = multer.diskStorage({
@@ -276,5 +279,4 @@ app.get('/api/progress/:sessionId', (req, res) => {
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`邮件发送服务已启动: http://localhost:${PORT}`);
-  console.log('请在浏览器中打开上述地址使用');
 });

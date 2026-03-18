@@ -1,8 +1,15 @@
 const { app, BrowserWindow, shell, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const PORT = 3000;
 let mainWindow = null;
+
+// 获取正确的基础路径
+function getBasePath() {
+  // 打包后使用 app.getAppPath()，开发时使用 __dirname
+  return app.isPackaged ? path.dirname(app.getAppPath()) : __dirname;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -25,7 +32,6 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // 在默认浏览器中打开外部链接
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http')) {
       shell.openExternal(url);
@@ -37,20 +43,27 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // 显示错误
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    dialog.showErrorBox('加载失败', `无法加载页面: ${errorDescription}\n请检查服务器是否正常启动`);
+    dialog.showErrorBox('加载失败', `无法加载页面: ${errorDescription}`);
   });
 }
 
-// 应用启动
 app.whenReady().then(() => {
   try {
+    // 设置工作目录为应用所在目录
+    const basePath = getBasePath();
+    process.chdir(basePath);
+
+    // 确保uploads目录存在
+    const uploadsDir = path.join(basePath, 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
     // 启动后端服务器
     require('./server.js');
-    console.log('服务器已启动');
 
-    // 等待服务器启动完成后再创建窗口
+    // 等待服务器启动
     setTimeout(() => {
       createWindow();
     }, 2000);
@@ -61,19 +74,17 @@ app.whenReady().then(() => {
       }
     });
   } catch (error) {
-    dialog.showErrorBox('启动失败', error.message);
+    dialog.showErrorBox('启动失败', error.message + '\n' + error.stack);
     app.quit();
   }
 });
 
-// 所有窗口关闭时退出应用
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// 捕获未处理的错误
 process.on('uncaughtException', (error) => {
   dialog.showErrorBox('程序错误', error.message);
 });

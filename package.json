@@ -30,6 +30,7 @@
       "!uploads/*",
       "!release/*"
     ],
+    "asar": false,
     "win": {
       "target": "nsis"
     },
